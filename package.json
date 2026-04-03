@@ -1,0 +1,36 @@
+{
+  "name": "shellnaut",
+  "version": "3.0.0",
+  "description": "Self-hosted terminal for your server. Access from any device, install as a mobile app.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "setup": "node setup.js",
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "dev:client": "vite",
+    "build": "vite build",
+    "postinstall": "npm run build"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^5.2.1",
+    "node-pty": "^1.1.0",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/xterm": "^6.0.0",
+    "vite": "^8.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rankgnar/shellnaut.git"
+  },
+  "license": "MIT",
+  "author": "rankgnar"
+}

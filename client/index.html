@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Shellnaut">
+<meta name="theme-color" content="#0d0d0d">
+<title>Shellnaut</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <img src="/icon-192.png" alt="Shellnaut" class="auth-icon">
+  <div class="auth-logo">Shellnaut</div>
+  <div class="auth-title">Your Shell, Anywhere</div>
+  <div class="auth-sub">Sign in to access your server.</div>
+
+  <form id="auth-form" autocomplete="on" onsubmit="event.preventDefault(); connect()">
+    <div class="auth-field">
+      <label>Server URL</label>
+      <input id="srv-url" type="url" placeholder="https://your-vps.com" autocomplete="url" spellcheck="false" autocorrect="off" autocapitalize="none">
+    </div>
+    <div class="auth-field">
+      <label>Username</label>
+      <input id="srv-user" type="text" placeholder="username" autocomplete="username" spellcheck="false" autocorrect="off" autocapitalize="none">
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input id="srv-pass" type="password" placeholder="password" autocomplete="current-password">
+    </div>
+    <button class="auth-btn" id="connect-btn" type="submit">Sign In</button>
+  </form>
+  <div class="auth-error" id="auth-error"></div>
+</div>
+
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <!-- Compact header: logo + tabs + actions in one bar -->
+  <div class="header">
+    <img src="/icon-192.png" alt="Shellnaut" class="header-logo">
+    <div class="header-tabs" id="tabs-bar">
+      <div class="tab-add" onclick="showNewTabModal()">+</div>
+    </div>
+    <div class="conn-status">
+      <div class="conn-dot" id="conn-dot"></div>
+      <span id="latency-label"></span>
+    </div>
+    <button class="header-btn header-btn-copy" onclick="copySelection()" title="Copy">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+    </button>
+    <button class="header-btn header-btn-upload" onclick="triggerUpload()" title="Upload file">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    </button>
+    <input type="file" id="file-input" style="display:none">
+    <button class="header-btn header-btn-toolbar" onclick="toggleToolbar()" title="Toggle keyboard">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="6" y1="8" x2="6" y2="8"/><line x1="10" y1="8" x2="10" y2="8"/><line x1="14" y1="8" x2="14" y2="8"/><line x1="18" y1="8" x2="18" y2="8"/><line x1="6" y1="12" x2="6" y2="12"/><line x1="10" y1="12" x2="10" y2="12"/><line x1="14" y1="12" x2="14" y2="12"/><line x1="18" y1="12" x2="18" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg>
+    </button>
+    <button class="header-btn header-btn-new" onclick="showNewTabModal()">+</button>
+    <button class="header-btn header-btn-exit" onclick="logout()">EXIT</button>
+  </div>
+
+  <div class="terminals" id="terminals"></div>
+
+  <!-- Redesigned mobile toolbar -->
+  <div class="toolbar-wrap" id="toolbar">
+    <!-- Row 1: Main controls -->
+    <div class="toolbar-row toolbar-main">
+      <button class="tb tb-esc" data-key="esc">ESC</button>
+      <button class="tb tb-mod" data-key="tab">TAB</button>
+      <div class="tb-separator"></div>
+      <button class="tb tb-arrow" data-key="up">&uarr;</button>
+      <button class="tb tb-arrow" data-key="down">&darr;</button>
+      <button class="tb tb-arrow" data-key="left">&larr;</button>
+      <button class="tb tb-arrow" data-key="right">&rarr;</button>
+      <div class="tb-separator"></div>
+      <button class="tb tb-enter" data-key="enter">INT</button>
+    </div>
+    <!-- Row 2: Ctrl combos -->
+    <div class="toolbar-row toolbar-ctrl">
+      <button class="tb tb-ctrl" data-ctrl="c">^C</button>
+      <button class="tb tb-ctrl" data-ctrl="d">^D</button>
+      <button class="tb tb-ctrl" data-ctrl="z">^Z</button>
+      <button class="tb tb-ctrl" data-ctrl="l">^L</button>
+      <button class="tb tb-ctrl" data-ctrl="r">^R</button>
+      <button class="tb tb-ctrl" data-ctrl="a">^A</button>
+      <button class="tb tb-ctrl" data-ctrl="e">^E</button>
+      <button class="tb tb-ctrl" data-ctrl="u">^U</button>
+    </div>
+    <!-- Row 3: Scrollable special characters -->
+    <div class="toolbar-chars-wrap">
+      <div class="toolbar-chars" id="toolbar-chars">
+        <button class="tb tb-char" data-char="-">-</button>
+        <button class="tb tb-char" data-char="_">_</button>
+        <button class="tb tb-char" data-char=".">.</button>
+        <button class="tb tb-char" data-char="/">/</button>
+        <button class="tb tb-char" data-char="~">~</button>
+        <button class="tb tb-char" data-char="|">|</button>
+        <button class="tb tb-char" data-char=">">&gt;</button>
+        <button class="tb tb-char" data-char="<">&lt;</button>
+        <button class="tb tb-char" data-char="{">{</button>
+        <button class="tb tb-char" data-char="}">}</button>
+        <button class="tb tb-char" data-char="[">[</button>
+        <button class="tb tb-char" data-char="]">]</button>
+        <button class="tb tb-char" data-char='"'>"</button>
+        <button class="tb tb-char" data-char="'">'</button>
+        <button class="tb tb-char" data-char="=">=</button>
+        <button class="tb tb-char" data-char="@">@</button>
+        <button class="tb tb-char" data-char="#">#</button>
+        <button class="tb tb-char" data-char="$">$</button>
+        <button class="tb tb-char" data-char="%">%</button>
+        <button class="tb tb-char" data-char="&">&amp;</button>
+        <button class="tb tb-char" data-char="*">*</button>
+        <button class="tb tb-char" data-char="!">!</button>
+        <button class="tb tb-char" data-char="?">?</button>
+        <button class="tb tb-char" data-char=":">:</button>
+        <button class="tb tb-char" data-char=";">;</button>
+        <button class="tb tb-char" data-char="\\">\</button>
+        <button class="tb tb-char" data-char="(">(</button>
+        <button class="tb tb-char" data-char=")">)</button>
+        <button class="tb tb-char" data-char="+">+</button>
+        <button class="tb tb-char" data-char="`">`</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SESSION MANAGER MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div id="modal-sessions" style="display:none">
+      <h3>Active Sessions</h3>
+      <div id="session-list" class="session-list"></div>
+      <div class="modal-divider"></div>
+    </div>
+    <h3>New Session</h3>
+    <div class="modal-custom">
+      <input id="custom-name" type="text" placeholder="session name..." spellcheck="false" autocorrect="off" autocapitalize="none">
+      <button onclick="openCustomTab()">Open</button>
+    </div>
+    <button class="modal-cancel" onclick="hideModalDirect()">Cancel</button>
+  </div>
+</div>
+
+<script type="module" src="./main.js"></script>
+</body>
+</html>
