@@ -169,7 +169,7 @@ function createTmuxSession(label, cmd) {
     // Always start with bash so the session survives if the CLI exits
     execFileSync('tmux', ['new-session', '-d', '-s', name, '-x', '80', '-y', '24'], {
       env: buildShellEnv(),
-      cwd: process.env.HOME || '/root',
+      cwd: homedir(),
       stdio: 'ignore',
     })
     // Enable mouse support (scroll = tmux copy-mode) and increase scrollback
@@ -199,7 +199,7 @@ function attachToTmuxSession(name, cols, rows) {
   const shell = pty.spawn('tmux', ['attach-session', '-t', name], {
     name: 'xterm-256color',
     cols, rows,
-    cwd: process.env.HOME || '/root',
+    cwd: homedir(),
     env: buildShellEnv(),
   })
   return shell

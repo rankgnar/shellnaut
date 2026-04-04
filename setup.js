@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Interactive setup: create credentials for Shellnaut
 import crypto from 'crypto'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, chmodSync } from 'fs'
 import { createInterface } from 'readline'
 
 const ENV_PATH = new URL('.env', import.meta.url).pathname
@@ -55,7 +55,8 @@ async function main() {
   }
 
   envContent = `AUTH_USER=${username}\nAUTH_HASH=${hash}\n${envContent}`
-  writeFileSync(ENV_PATH, envContent)
+  writeFileSync(ENV_PATH, envContent, { mode: 0o600 })
+  try { chmodSync(ENV_PATH, 0o600) } catch {}
 
   console.log(`\n  Credentials saved to .env`)
   console.log(`  Username: ${username}`)

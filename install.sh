@@ -104,6 +104,24 @@ TAILSCALE_IP=""
 REAL_USER="${SUDO_USER:-$USER}"
 REAL_GROUP=$(id -gn "$REAL_USER" 2>/dev/null || echo "$REAL_USER")
 
+# Run PM2 as the real user (not root) when installer is run with sudo
+run_pm2() {
+  if [[ "$EUID" -eq 0 && -n "${SUDO_USER:-}" ]]; then
+    sudo -u "$REAL_USER" -H pm2 "$@"
+  else
+    pm2 "$@"
+  fi
+}
+
+# Run a command as the real user when installer is run with sudo
+run_as_user() {
+  if [[ "$EUID" -eq 0 && -n "${SUDO_USER:-}" ]]; then
+    sudo -u "$REAL_USER" -H "$@"
+  else
+    "$@"
+  fi
+}
+
 # ─── STEP 0: Check prerequisites ─────────────────────────────────────────────
 
 step0_prerequisites() {
@@ -240,9 +258,9 @@ the web interface automatically."
   if confirm "Press Enter to install, or type 'skip'"; then
     cd "$INSTALL_DIR"
     npm install
-    # Fix ownership if running as root via sudo
+    # Fix ownership of entire project if running as root via sudo
     if [[ "$EUID" -eq 0 && -n "${SUDO_USER:-}" ]]; then
-      chown -R "$REAL_USER:$REAL_GROUP" "$INSTALL_DIR/node_modules" "$INSTALL_DIR/package-lock.json" 2>/dev/null || true
+      chown -R "$REAL_USER:$REAL_GROUP" "$INSTALL_DIR" 2>/dev/null || true
     fi
     echo ""
     ok "Dependencies installed and client built."
@@ -271,7 +289,7 @@ stored in plain text."
 
   if confirm "Press Enter to set up credentials, or type 'skip'"; then
     cd "$INSTALL_DIR"
-    node setup.js </dev/tty
+    run_as_user node setup.js </dev/tty
     echo ""
     ok "Credentials saved."
   fi
@@ -299,11 +317,16 @@ If the server reboots or the process crashes, PM2 restarts it automatically."
 
   echo ""
 
-  # Check if an existing instance is running
-  if pm2 describe shellnaut &>/dev/null 2>&1; then
+  # Clean up any root-owned PM2 instance from previous installs
+  if [[ "$EUID" -eq 0 ]]; then
+    pm2 delete shellnaut 2>/dev/null || true
+  fi
+
+  # Check if an existing instance is running (as real user)
+  if run_pm2 describe shellnaut &>/dev/null 2>&1; then
     warn "Shellnaut is already running in PM2."
     if confirm_yn "Stop the existing instance and start fresh?"; then
-      pm2 delete shellnaut 2>/dev/null || true
+      run_pm2 delete shellnaut 2>/dev/null || true
       ok "Existing instance stopped."
     else
       echo -e "${DIM}  Keeping existing instance. You can restart manually: pm2 restart shellnaut${RESET}"
@@ -315,13 +338,13 @@ If the server reboots or the process crashes, PM2 restarts it automatically."
 
   if confirm "Press Enter to start Shellnaut, or type 'skip'"; then
     cd "$INSTALL_DIR"
-    pm2 start server.js --name shellnaut
-    pm2 save
+    run_pm2 start server.js --name shellnaut
+    run_pm2 save
     echo ""
 
     # Configure auto-start on reboot
     local startup_cmd
-    startup_cmd=$(pm2 startup 2>/dev/null | grep "sudo" | head -1 || true)
+    startup_cmd=$(run_pm2 startup 2>/dev/null | grep "sudo" | head -1 || true)
     if [[ -n "$startup_cmd" ]]; then
       explain "PM2 needs this command to auto-start on reboot:"
       show_command "$startup_cmd"
