@@ -98,7 +98,7 @@ divider() {
   echo -e "${DIM}  ────────────────────────────────────────────────────────────${RESET}"
 }
 
-TOTAL_STEPS=7
+TOTAL_STEPS=8
 INSTALL_DIR=""
 TAILSCALE_IP=""
 REAL_USER="${SUDO_USER:-$USER}"
@@ -373,7 +373,8 @@ If the server reboots or the process crashes, PM2 restarts it automatically."
 
     # Verify it's running
     sleep 2
-    if curl -s http://localhost:3001/ping 2>/dev/null | grep -q "ok"; then
+    local ping_host="${TAILSCALE_IP:-localhost}"
+    if curl -s "http://${ping_host}:3001/ping" 2>/dev/null | grep -q "ok"; then
       ok "Shellnaut is running!"
     else
       error "Server may not have started correctly. Check: pm2 logs shellnaut"
@@ -381,10 +382,45 @@ If the server reboots or the process crashes, PM2 restarts it automatically."
   fi
 }
 
-# ─── STEP 7: Final summary ──────────────────────────────────────────────────
+# ─── STEP 7: Configure firewall ─────────────────────────────────────────────
 
-step7_summary() {
-  step_header 7 $TOTAL_STEPS "Done!"
+step7_firewall() {
+  step_header 7 $TOTAL_STEPS "Configure firewall"
+
+  explain "UFW (Uncomplicated Firewall) blocks all incoming traffic except SSH \
+and Tailscale. This prevents anyone on the public internet from reaching \
+Shellnaut — only your Tailscale devices can connect."
+
+  # Skip if no Tailscale (firewall would block Shellnaut access)
+  if [[ -z "$TAILSCALE_IP" || "$TAILSCALE_IP" == "your-server-ip" ]]; then
+    warn "Skipping firewall setup — no Tailscale detected."
+    echo -e "  ${DIM}Without Tailscale, the firewall would block access to Shellnaut.${RESET}"
+    return
+  fi
+
+  if command -v ufw &>/dev/null && sudo ufw status 2>/dev/null | grep -q "Status: active"; then
+    ok "UFW firewall is already active."
+    return
+  fi
+
+  show_command "sudo ufw default deny incoming && sudo ufw default allow outgoing && sudo ufw allow 22/tcp && sudo ufw allow in on tailscale0 && sudo ufw --force enable"
+
+  if confirm "Press Enter to configure the firewall, or type 'skip'"; then
+    sudo apt install -y ufw 2>/dev/null || true
+    sudo ufw default deny incoming
+    sudo ufw default allow outgoing
+    sudo ufw allow 22/tcp
+    sudo ufw allow in on tailscale0
+    sudo ufw --force enable
+    echo ""
+    ok "Firewall configured. Only SSH and Tailscale traffic allowed."
+  fi
+}
+
+# ─── STEP 8: Final summary ──────────────────────────────────────────────────
+
+step8_summary() {
+  step_header 8 $TOTAL_STEPS "Done!"
 
   echo ""
   echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════════════════════╗${RESET}"
@@ -396,7 +432,9 @@ step7_summary() {
   echo -e "  ${GREEN}✓${RESET}  tmux installed"
   echo -e "  ${GREEN}✓${RESET}  Shellnaut downloaded and built"
   echo -e "  ${GREEN}✓${RESET}  Credentials configured"
-  echo -e "  ${GREEN}✓${RESET}  Server running with PM2"
+  echo -e "  ${GREEN}✓${RESET}  Server running with PM2 (as ${REAL_USER})"
+  echo -e "  ${GREEN}✓${RESET}  Firewall active — only SSH + Tailscale allowed"
+  echo -e "  ${GREEN}✓${RESET}  Bound to Tailscale IP — not exposed to internet"
   echo ""
   echo -e "  ${BOLD}Open this URL in your browser:${RESET}"
   echo ""
@@ -439,7 +477,8 @@ main() {
   step4_install_deps
   step5_setup_credentials
   step6_start_server
-  step7_summary
+  step7_firewall
+  step8_summary
 }
 
 main "$@"
