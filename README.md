@@ -59,11 +59,15 @@ SSH from a phone is painful. Third-party terminal apps require trusting someone 
 
 ### Security
 
+- **Not exposed to the internet** — Server binds to your Tailscale IP only, unreachable from public IPs
+- **Firewall** — UFW configured automatically: only SSH and Tailscale traffic allowed
+- **Runs as your user, not root** — The installer ensures the server never runs as root
 - **Username/password auth** — Password stored as scrypt hash, never in plaintext
 - **Exponential backoff** — 5 failed attempts triggers lockout (1min, 2min, 4min... up to 30min)
 - **Command allowlist** — Only whitelisted commands can be spawned
 - **Session limits** — Configurable max concurrent sessions
 - **Security headers** — CSP, X-Frame-Options, HSTS, no-referrer
+- **.env protected** — Credentials file set to 0600 (owner-only)
 
 ---
 
@@ -109,16 +113,18 @@ Clone the repo and run the interactive installer:
 cd ~
 git clone https://github.com/rankgnar/shellnaut.git
 cd shellnaut
-bash install.sh
+sudo bash install.sh
 ```
 
 The wizard will:
-1. Verify Tailscale is running (if installed)
+1. Verify Tailscale is running and get your private IP
 2. Install Node.js if needed
 3. Install tmux if needed
 4. Install dependencies and build the client
 5. Ask you to create a username and password
-6. Start the server with PM2 (auto-restart on reboot)
+6. Start the server with PM2 as your user (not root)
+7. Configure UFW firewall (block everything except SSH + Tailscale)
+8. Show you the URL to connect
 
 At the end, it gives you the URL to open in your browser.
 
@@ -173,6 +179,7 @@ Then restart: `pm2 restart shellnaut`
 
 | Variable | Default | What it does |
 |:---------|:--------|:------------|
+| `HOST` | `0.0.0.0` | Bind address — set to your Tailscale IP to block public access |
 | `PORT` | `3001` | Port the server runs on |
 | `DEFAULT_CMD` | `bash` | Default shell when creating a session |
 | `MAX_SESSIONS` | `10` | Max sessions running at the same time |
@@ -186,7 +193,7 @@ Then restart: `pm2 restart shellnaut`
 **"Cannot reach server"**
 - Make sure the server is running: `pm2 status shellnaut`
 - Make sure Tailscale is connected on both devices: `tailscale status`
-- Check that port 3001 is not blocked: `sudo ufw allow 3001`
+- Verify Shellnaut is listening: `curl -s http://<your-tailscale-ip>:3001/ping`
 
 **"tmux is required"**
 - Install it: `sudo apt install tmux`
