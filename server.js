@@ -20,6 +20,7 @@ const AUTH_HASH        = process.env.AUTH_HASH
 const TOKEN_HASH       = process.env.TOKEN_HASH      // legacy
 const TOKEN_PLAIN      = process.env.SECRET_TOKEN    // legacy
 const PORT             = process.env.PORT || 3001
+const HOST             = process.env.HOST || '0.0.0.0'
 const DEFAULT_CMD      = process.env.DEFAULT_CMD || 'bash'
 const MAX_SESSIONS     = parseInt(process.env.MAX_SESSIONS || '10')
 const INACTIVITY_MINS  = parseInt(process.env.INACTIVITY_TIMEOUT || '30')
@@ -513,7 +514,7 @@ function wireShell(ws, shell, name) {
   })
 }
 
-server.listen(PORT, () => {
-  console.log(`Shellnaut running on http://localhost:${PORT}`)
+server.listen(PORT, HOST, () => {
+  console.log(`Shellnaut running on http://${HOST}:${PORT}`)
   console.log(`Allowed: ${ALLOWED_COMMANDS.join(', ')} | Max: ${MAX_SESSIONS} | Timeout: ${INACTIVITY_MINS}m`)
 })

@@ -293,6 +293,16 @@ stored in plain text."
     echo ""
     ok "Credentials saved."
   fi
+
+  # Bind server to Tailscale IP if available (block public internet access)
+  if [[ -n "$TAILSCALE_IP" && "$TAILSCALE_IP" != "your-server-ip" ]] && [[ -f "$INSTALL_DIR/.env" ]]; then
+    if ! grep -q "^HOST=" "$INSTALL_DIR/.env" 2>/dev/null; then
+      echo "" >> "$INSTALL_DIR/.env"
+      echo "# Bind only to Tailscale — blocks public internet access" >> "$INSTALL_DIR/.env"
+      echo "HOST=${TAILSCALE_IP}" >> "$INSTALL_DIR/.env"
+      ok "Server will only listen on Tailscale (${TAILSCALE_IP})."
+    fi
+  fi
 }
 
 # ─── STEP 6: Start with PM2 ─────────────────────────────────────────────────
