@@ -101,6 +101,8 @@ divider() {
 TOTAL_STEPS=7
 INSTALL_DIR=""
 TAILSCALE_IP=""
+REAL_USER="${SUDO_USER:-$USER}"
+REAL_GROUP=$(id -gn "$REAL_USER" 2>/dev/null || echo "$REAL_USER")
 
 # ─── STEP 0: Check prerequisites ─────────────────────────────────────────────
 
@@ -238,6 +240,10 @@ the web interface automatically."
   if confirm "Press Enter to install, or type 'skip'"; then
     cd "$INSTALL_DIR"
     npm install
+    # Fix ownership if running as root via sudo
+    if [[ "$EUID" -eq 0 && -n "${SUDO_USER:-}" ]]; then
+      chown -R "$REAL_USER:$REAL_GROUP" "$INSTALL_DIR/node_modules" "$INSTALL_DIR/package-lock.json" 2>/dev/null || true
+    fi
     echo ""
     ok "Dependencies installed and client built."
   fi
@@ -315,7 +321,7 @@ If the server reboots or the process crashes, PM2 restarts it automatically."
 
     # Configure auto-start on reboot
     local startup_cmd
-    startup_cmd=$(pm2 startup 2>/dev/null | grep "sudo" | head -1)
+    startup_cmd=$(pm2 startup 2>/dev/null | grep "sudo" | head -1 || true)
     if [[ -n "$startup_cmd" ]]; then
       explain "PM2 needs this command to auto-start on reboot:"
       show_command "$startup_cmd"
