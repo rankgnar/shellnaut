@@ -159,8 +159,9 @@ can reach this server. It's optional but recommended for VPS installations."
 # ─── STEP 1: Install Node.js ─────────────────────────────────────────────────
 
 step1_install_node() {
-  step_header 1 $TOTAL_STEPS "Install Node.js"
+  step_header 1 $TOTAL_STEPS "Install Node.js & build tools"
 
+  local need_node=true
   if command -v node &>/dev/null; then
     local version
     version=$(node --version)
@@ -168,22 +169,41 @@ step1_install_node() {
     major=$(echo "$version" | sed 's/v//' | cut -d. -f1)
     if [[ "$major" -ge 18 ]]; then
       ok "Node.js ${version} is already installed."
-      return
+      need_node=false
     else
       warn "Node.js ${version} is too old. Need v18 or higher."
     fi
   fi
 
-  explain "Node.js is the runtime that Shellnaut runs on. We'll install the \
+  if [[ "$need_node" == true ]]; then
+    explain "Node.js is the runtime that Shellnaut runs on. We'll install the \
 latest LTS version (v22)."
 
-  show_command "curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash - && sudo apt install -y nodejs"
+    show_command "curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash - && sudo apt install -y nodejs"
 
-  if confirm "Press Enter to install Node.js, or type 'skip'"; then
-    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -
-    sudo apt install -y nodejs
+    if confirm "Press Enter to install Node.js, or type 'skip'"; then
+      curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -
+      sudo apt install -y nodejs
+      echo ""
+      ok "Node.js $(node --version) installed."
+    fi
+  fi
+
+  # build-essential is required to compile node-pty (native addon)
+  if dpkg -s build-essential &>/dev/null 2>&1; then
+    ok "build-essential is already installed."
+  else
     echo ""
-    ok "Node.js $(node --version) installed."
+    explain "build-essential (make, gcc, g++) is needed to compile node-pty, \
+the native module that connects to terminal sessions."
+
+    show_command "sudo apt install -y build-essential"
+
+    if confirm "Press Enter to install build tools, or type 'skip'"; then
+      sudo apt install -y build-essential
+      echo ""
+      ok "build-essential installed."
+    fi
   fi
 }
 
@@ -456,6 +476,22 @@ step8_summary() {
 
 main() {
   banner
+
+  # Block running as root directly (not via sudo)
+  # If EUID is 0 but SUDO_USER is empty, the user logged in as root.
+  # PM2 and Shellnaut must run as a regular user to avoid root terminals.
+  if [[ "$EUID" -eq 0 && -z "${SUDO_USER:-}" ]]; then
+    error "Do not run this installer as root directly."
+    echo ""
+    echo -e "  ${DIM}Log in as a regular user and use sudo:${RESET}"
+    echo -e "  ${CYAN}  sudo bash install.sh${RESET}"
+    echo ""
+    echo -e "  ${DIM}If you don't have a regular user yet, create one first:${RESET}"
+    echo -e "  ${CYAN}  adduser myuser && usermod -aG sudo myuser${RESET}"
+    echo -e "  ${DIM}Then log in as that user and run the installer.${RESET}"
+    echo ""
+    exit 1
+  fi
 
   echo -e "${BOLD}  Welcome to the Shellnaut installer!${RESET}"
   echo ""
